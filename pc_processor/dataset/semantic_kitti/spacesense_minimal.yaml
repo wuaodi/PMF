@@ -1,0 +1,78 @@
+# This file is covered by the LICENSE file in the root of this project.
+name: "kitti"
+labels:
+  0: "main_body"
+  1: "solar_panel"
+  2: "dish_antenna"
+  3: "omni_antenna"
+  4: "payload"
+  5: "thruster"
+color_map: # bgr
+  0: [0, 255, 0] # main_body
+  1: [0, 0, 255] # solar_panel
+  2: [245, 150, 100] # dish_antenna
+  3: [0, 255, 255] # omni_antenna
+  4: [255, 255, 0] # payload
+  5: [255, 0, 255] # thruster
+content: # as a ratio with the total number of points
+  0: 0.5
+  1: 0.2
+  2: 0.1
+  3: 0.1
+  4: 0.05
+  5: 0.05
+# classes that are indistinguishable from single scan or inconsistent in
+# ground truth are mapped to their closest equivalent
+learning_map:
+  0: 0     # "main_body"
+  1: 1     # "solar_panel"
+  2: 2     # "dish_antenna"
+  3: 3     # "omni_antenna"
+  4: 4     # "payload"
+  5: 5     # "thruster"
+learning_map_inv: # inverse of previous map
+  0: 0     # "main_body"
+  1: 1     # "solar_panel"
+  2: 2     # "dish_antenna"
+  3: 3     # "omni_antenna"
+  4: 4     # "payload"
+  5: 5     # "thruster"
+learning_ignore: # Ignore classes
+  0: false # "main_body"
+  1: false # "solar_panel"
+  2: false # "dish_antenna"
+  3: false # "omni_antenna"
+  4: false # "payload"
+  5: false # "thruster"
+split: # sequence numbers
+  train:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+  valid:
+    - 6
+    - 7
+  test:
+    - 8
+    - 9
+    
+mapped_class_name:
+  0: "main_body"
+  1: "solar_panel"   
+  2: "dish_antenna"
+  3: "omni_antenna"
+  4: "payload"
+  5: "thruster"
+
+color_map_inv: # bgr
+  0: [0, 255, 0]       # main_body
+  1: [0, 0, 255]       # solar_panel
+  2: [245, 150, 100]   # dish_antenna
+  3: [0, 255, 255]     # omni_antenna
+  4: [255, 255, 0]     # payload
+  5: [255, 0, 255]     # thruster

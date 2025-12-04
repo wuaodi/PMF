@@ -6,9 +6,10 @@ from pathlib import Path
 source_dirs = [
     "/home/wuaodi/projects/PMF/data/data_odometry_velodyne/dataset/sequences",
     "/home/wuaodi/projects/PMF/data/data_odometry_labels/dataset/sequences",
-    "/home/wuaodi/projects/PMF/data/data_odometry_color/dataset/sequences"
+    "/home/wuaodi/projects/PMF/data/data_odometry_color/dataset/sequences",
+    "/home/wuaodi/projects/PMF/data/data_odometry_calib/dataset/sequences"
 ]
-target_base_dir = "/home/wuaodi/projects/PMF/data/semantic-kitty/sequences"
+target_base_dir = "/home/wuaodi/projects/PMF/data/semantic-kitti/sequences"
 
 # Ensure target base directory exists
 os.makedirs(target_base_dir, exist_ok=True)
@@ -32,13 +33,15 @@ for seq in range(22):  # 0 to 21 inclusive
                 src_item_path = os.path.join(src_seq_dir, item)
                 target_item_path = os.path.join(target_seq_dir, item)
 
-                # Skip if target item already exists to avoid overwriting
-                if os.path.exists(target_item_path):
-                    print(f"Warning: {target_item_path} already exists, skipping {src_item_path}")
-                    continue
-
-                # Move the item (file or directory)
+                # Move the item (file or directory), overwriting if it exists
                 try:
+                    if os.path.exists(target_item_path):
+                        if os.path.isdir(target_item_path):
+                            shutil.rmtree(target_item_path)  # Remove existing directory
+                        else:
+                            os.remove(target_item_path)  # Remove existing file
+                        print(f"Overwriting: Removed existing {target_item_path}")
+
                     shutil.move(src_item_path, target_item_path)
                     print(f"Moved {src_item_path} to {target_item_path}")
                 except Exception as e:

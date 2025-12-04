@@ -8,6 +8,7 @@ import datetime
 import pc_processor
 import math
 import torch.nn.functional as F
+import yaml
 
 
 class Trainer(object):
@@ -99,10 +100,18 @@ class Trainer(object):
 
     def _initDataloader(self):
         if self.settings.dataset == "SemanticKitti":
-            data_config_path = "../../pc_processor/dataset/semantic_kitti/semantic-kitti.yaml"
+            # data_config_path = "../../pc_processor/dataset/semantic_kitti/semantic-kitti.yaml"
+            data_config_path = "../../pc_processor/dataset/semantic_kitti/spacesense_minimal.yaml"
+            
+            # 读取配置文件获取序列划分
+            with open(data_config_path, 'r') as f:
+                data_config = yaml.safe_load(f)
+            train_sequences = data_config["split"]["train"]
+            valid_sequences = data_config["split"]["valid"]
+            
             trainset = pc_processor.dataset.semantic_kitti.SemanticKitti(
                 root=self.settings.data_root,
-                sequences=[0,1,2,3,4,5,6,7,9,10],
+                sequences=train_sequences,
                 config_path=data_config_path
             )
             self.cls_weight = 1 / (trainset.cls_freq + 1e-3)
@@ -118,7 +127,7 @@ class Trainer(object):
 
             valset = pc_processor.dataset.semantic_kitti.SemanticKitti(
                 root=self.settings.data_root,
-                sequences=[8],
+                sequences=valid_sequences,
                 config_path=data_config_path
             )
 
@@ -297,6 +306,28 @@ class Trainer(object):
             img_feature = input_feature[:, 5:8]
             input_label = input_label.cuda().long()
             label_mask = input_label.gt(0)
+            # ================================================
+            # 调试：检测问题样本
+            if label_mask.sum() == 0:
+                sample_idx = i if mode == "Validation" else (epoch * len(dataloader) + i)
+                # 获取样本文件信息
+                if hasattr(dataloader.dataset, 'dataset'):
+                    dataset = dataloader.dataset.dataset
+                    if hasattr(dataset, 'parsePathInfoByIndex'):
+                        seq_id, frame_id = dataset.parsePathInfoByIndex(i)
+                        sample_info = f"seq_{seq_id}/frame_{frame_id}"
+                    else:
+                        sample_info = f"index_{i}"
+                else:
+                    sample_info = f"index_{i}"
+                
+                if self.recorder is not None:
+                    self.recorder.logger.warning(
+                        f"WARNING: {mode} Sample {sample_info} (iter={i}, global_iter={sample_idx}) "
+                        f"has ALL LABELS MASKED! label_unique={input_label.unique().cpu().tolist()}, "
+                        f"label_shape={input_label.shape}, mask_sum={label_mask.sum().item()}")
+                continue  # 跳过这个样本
+            # ================================================
 
             # forward propergation
             if mode == "Train":
@@ -330,7 +361,6 @@ class Trainer(object):
                 total_loss = loss_foc + loss_lov * self.settings.lambda_ + \
                      loss_foc_cam + loss_lov_cam * self.settings.lambda_ + \
                      loss_per * self.settings.gamma
-
                 if self.settings.n_gpus > 1:
                     total_loss = total_loss.mean()
 
@@ -395,6 +425,10 @@ class Trainer(object):
                 mean_acc_img, class_acc_img = self.metrics_img.getAcc()
                 mean_recall_img, class_recall_img = self.metrics_img.getRecall()
 
+            # 检查NaN
+            if torch.isnan(total_loss):
+                print("Warning: NaN detected in loss, skipping this batch")
+                continue
             loss_meter.update(total_loss.item(), input_feature.size(0))
             loss_focal_meter.update(loss_foc.item(), input_feature.size(0))
             loss_lovasz_meter.update(loss_lov.item(), input_feature.size(0))

@@ -1,26 +1,28 @@
 # common config
-save_path: "../../experiments/PMF-SemanticKitti/"
+# save_path: "../../experiments/PMF-semantic-kitti-fov/"
+save_path: "../../experiments/PMF-spacesense_minimal/"
 seed: 1
-gpu: "0,1,2,3"
+#gpu: "0,1,2,3"
+gpu: "0"
 print_frequency: 2
 n_threads: 4
-experiment_id: "baseline_timestamp"
+experiment_id: "202512041200"
 
 # data conifg
 val_only: false
 has_label: true
 is_debug: false
 n_epochs: 50
-batch_size: [2, 4]
-lr: 0.001
+batch_size: [1, 1] # 定义训练和验证的批次大小
+lr: 0.0001  # 降低学习率防止NaN
 warmup_epochs: 1
 momentum: 0.9
 weight_decay: 0.00001
 val_frequency: 1
 
 dataset: "SemanticKitti"
-nclasses: 20 # 19+1(ignored)
-data_root: "/path/to/semantic-kitti-fov/sequences"
+nclasses: 6 # 6 classes for SpaceSense
+data_root: "../../data/spacesense_minimal_kitti/sequences"
 
 base_channels: 32
 img_backbone: "resnet34"
@@ -68,14 +70,15 @@ augmentation:
 sensor:
   name: "HDL64"
   type: "perception-aware"
-  # crop size of validation samples
-  proj_h: 384
-  proj_w: 1232
-  # crop size of training samples
-  proj_ht: 256 
-  proj_wt: 1024 
-  h_pad: 7
-  w_pad: 3
+  # crop size of validation samples - 设置为1024x1024
+  proj_h: 1024
+  proj_w: 1024
+  # crop size of training samples - 设置为1024x1024
+  proj_ht: 1024
+  proj_wt: 1024
+  # 我的图像本来就能够被16整除，所以不需要padding
+  h_pad: 0
+  w_pad: 0
 
   img_mean:
     - 12.12

@@ -39,10 +39,10 @@ class Inference(object):
         if self.settings.dataset == "SemanticKitti":
             valset = pc_processor.dataset.semantic_kitti.SemanticKitti(
                 root=self.settings.data_root,
-                # sequences=[8],
-                # config_path="../../pc_processor/dataset/semantic_kitti/semantic-kitti.yaml",
-                sequences=[0],
-                config_path="../../pc_processor/dataset/semantic_kitti/airsim_data_convert.yaml",
+                sequences=[8],
+                config_path="../../pc_processor/dataset/semantic_kitti/semantic-kitti.yaml",
+                # sequences=[0],
+                # config_path="../../pc_processor/dataset/semantic_kitti/airsim_data_convert.yaml",
                 has_label=self.settings.has_label,
                 has_image=True
             )
@@ -92,12 +92,7 @@ class Inference(object):
                 padding_layer = torch.nn.ZeroPad2d(
                     (w_pad, w_pad, h_pad, h_pad))
 
-                # 打印padding之前的shape, 用红色打印
-                # print(f"\033[91mInput feature shape before padding: {input_feature.shape}\033[0m")
                 input_feature = padding_layer(input_feature)
-                # 打印padding之后的shape, 用红色打印
-                # print(f"\033[91mInput feature shape after padding: {input_feature.shape}\033[0m")
-
                 input_mask = input_mask.cuda()
                 input_mask = padding_layer(input_mask)
                 input_feature[:, 0:5] = (

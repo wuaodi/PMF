@@ -1,0 +1,45 @@
+# This file is covered by the LICENSE file in the root of this project.
+name: "kitti"
+labels:
+  0: "unlabeled"
+  1: "outlier"
+  2: "car"
+color_map: # bgr
+  0: [0, 255, 0] #  [0, 0, 0]
+  1: [0, 0, 255]
+  2: [245, 150, 100]
+content: # as a ratio with the total number of points
+  0: 0.18889854628292943
+  1: 0.2937197336781505
+  2: 0.519255974316
+# classes that are indistinguishable from single scan or inconsistent in
+# ground truth are mapped to their closest equivalent
+learning_map:
+  0: 0     # "unlabeled"
+  1: 1     # "outlier" mapped to "unlabeled" --------------------------mapped
+  2: 2     # "car"
+learning_map_inv: # inverse of previous map
+  0: 0      # "unlabeled", and others ignored
+  1: 1     # "car"
+  2: 2     # "bicycle"
+learning_ignore: # Ignore classes
+  0: false      # "unlabeled", and others ignored
+  1: false     # "car"
+  2: false     # "bicycle"
+split: # sequence numbers
+  train:
+    - 0
+  valid:
+    - 0
+  test:
+    - 0
+    
+mapped_class_name:
+  0: "unlabeled"
+  1: "car"   
+  2: "bicycle"    
+
+color_map_inv: # bgr
+  0: [0, 255, 0] # [0, 0, 0]
+  1: [0, 0, 255]
+  2: [245, 150, 100]
