@@ -1,49 +1,55 @@
 # This file is covered by the LICENSE file in the root of this project.
 name: "kitti"
 labels:
-  0: "main_body"
-  1: "solar_panel"
-  2: "dish_antenna"
-  3: "omni_antenna"
-  4: "payload"
-  5: "thruster"
+  0: "unlabeled"    # 投影图中没有点的位置
+  1: "main_body"
+  2: "solar_panel"
+  3: "dish_antenna"
+  4: "omni_antenna"
+  5: "payload"
+  6: "thruster"
 color_map: # bgr
-  0: [0, 255, 0] # main_body
-  1: [0, 0, 255] # solar_panel
-  2: [245, 150, 100] # dish_antenna
-  3: [0, 255, 255] # omni_antenna
-  4: [255, 255, 0] # payload
-  5: [255, 0, 255] # thruster
+  0: [0, 0, 0]         # unlabeled (黑色，背景)
+  1: [0, 255, 0]       # main_body
+  2: [0, 0, 255]       # solar_panel
+  3: [245, 150, 100]   # dish_antenna
+  4: [0, 255, 255]     # omni_antenna
+  5: [255, 255, 0]     # payload
+  6: [255, 0, 255]     # thruster
 content: # as a ratio with the total number of points
-  0: 0.5
-  1: 0.2
-  2: 0.1
-  3: 0.1
-  4: 0.05
-  5: 0.05
+  0: 0.0   # unlabeled，不参与训练
+  1: 0.5   # main_body
+  2: 0.2   # solar_panel
+  3: 0.1   # dish_antenna
+  4: 0.1   # omni_antenna
+  5: 0.05  # payload
+  6: 0.05  # thruster
 # classes that are indistinguishable from single scan or inconsistent in
 # ground truth are mapped to their closest equivalent
 learning_map:
-  0: 0     # "main_body"
-  1: 1     # "solar_panel"
-  2: 2     # "dish_antenna"
-  3: 3     # "omni_antenna"
-  4: 4     # "payload"
-  5: 5     # "thruster"
+  0: 0     # "unlabeled" 保持0
+  1: 1     # "main_body" 恒等映射
+  2: 2     # "solar_panel"
+  3: 3     # "dish_antenna"
+  4: 4     # "omni_antenna"
+  5: 5     # "payload"
+  6: 6     # "thruster"
 learning_map_inv: # inverse of previous map
-  0: 0     # "main_body"
-  1: 1     # "solar_panel"
-  2: 2     # "dish_antenna"
-  3: 3     # "omni_antenna"
-  4: 4     # "payload"
-  5: 5     # "thruster"
+  0: 0     # "unlabeled"
+  1: 1     # "main_body"
+  2: 2     # "solar_panel"
+  3: 3     # "dish_antenna"
+  4: 4     # "omni_antenna"
+  5: 5     # "payload"
+  6: 6     # "thruster"
 learning_ignore: # Ignore classes
-  0: false # "main_body"
-  1: false # "solar_panel"
-  2: false # "dish_antenna"
-  3: false # "omni_antenna"
-  4: false # "payload"
-  5: false # "thruster"
+  0: true  # 忽略unlabeled（投影图中没有点的位置）
+  1: false # "main_body"
+  2: false # "solar_panel"
+  3: false # "dish_antenna"
+  4: false # "omni_antenna"
+  5: false # "payload"
+  6: false # "thruster"
 split: # sequence numbers
   train:
     - 0
@@ -52,8 +58,6 @@ split: # sequence numbers
     - 3
     - 4
     - 5
-    - 6
-    - 7
   valid:
     - 6
     - 7
@@ -62,17 +66,19 @@ split: # sequence numbers
     - 9
     
 mapped_class_name:
-  0: "main_body"
-  1: "solar_panel"   
-  2: "dish_antenna"
-  3: "omni_antenna"
-  4: "payload"
-  5: "thruster"
+  0: "unlabeled"
+  1: "main_body"
+  2: "solar_panel"   
+  3: "dish_antenna"
+  4: "omni_antenna"
+  5: "payload"
+  6: "thruster"
 
 color_map_inv: # bgr
-  0: [0, 255, 0]       # main_body
-  1: [0, 0, 255]       # solar_panel
-  2: [245, 150, 100]   # dish_antenna
-  3: [0, 255, 255]     # omni_antenna
-  4: [255, 255, 0]     # payload
-  5: [255, 0, 255]     # thruster
+  0: [0, 0, 0]         # unlabeled (黑色)
+  1: [0, 255, 0]       # main_body
+  2: [0, 0, 255]       # solar_panel
+  3: [245, 150, 100]   # dish_antenna
+  4: [0, 255, 255]     # omni_antenna
+  5: [255, 255, 0]     # payload
+  6: [255, 0, 255]     # thruster

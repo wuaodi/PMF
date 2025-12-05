@@ -5,23 +5,23 @@ seed: 1
 #gpu: "0,1,2,3"
 gpu: "0"
 print_frequency: 2
-n_threads: 4
-experiment_id: "202512041200"
+n_threads: 2  # 降低预加载worker数量，减少显存峰值
+experiment_id: "202512041700"
 
 # data conifg
 val_only: false
 has_label: true
 is_debug: false
 n_epochs: 50
-batch_size: [1, 1] # 定义训练和验证的批次大小
-lr: 0.0001  # 降低学习率防止NaN
+batch_size: [2, 2] # 定义训练和验证的批次大小（折中方案）
+lr: 0.0001  # 大幅降低学习率，防止梯度爆炸和参数NaN
 warmup_epochs: 1
 momentum: 0.9
 weight_decay: 0.00001
 val_frequency: 1
 
 dataset: "SemanticKitti"
-nclasses: 6 # 6 classes for SpaceSense
+nclasses: 7 # 6 real classes + 1 unlabeled (background)
 data_root: "../../data/spacesense_minimal_kitti/sequences"
 
 base_channels: 32
@@ -70,12 +70,12 @@ augmentation:
 sensor:
   name: "HDL64"
   type: "perception-aware"
-  # crop size of validation samples - 设置为1024x1024
-  proj_h: 1024
-  proj_w: 1024
-  # crop size of training samples - 设置为1024x1024
-  proj_ht: 1024
-  proj_wt: 1024
+  # crop size of validation samples - 降低到512x512节省显存
+  proj_h: 512
+  proj_w: 512
+  # crop size of training samples - 降低到512x512节省显存
+  proj_ht: 512
+  proj_wt: 512
   # 我的图像本来就能够被16整除，所以不需要padding
   h_pad: 0
   w_pad: 0

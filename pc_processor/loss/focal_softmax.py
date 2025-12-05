@@ -57,7 +57,12 @@ class FocalSoftmaxLoss(nn.Module):
         if mask is not None:
             if len(mask.size()) > 1:
                 mask = mask.view(-1)
-            loss = (loss * mask).sum() / mask.sum()
+            mask_sum = mask.sum()
+            if mask_sum > 0:
+                loss = (loss * mask).sum() / mask_sum
+            else:
+                # 避免除零，返回0损失
+                loss = (loss * mask).sum() * 0.0
             return loss
         else:
             return loss.mean()

@@ -9,6 +9,7 @@ import pc_processor
 import math
 import torch.nn.functional as F
 import yaml
+import gc
 
 
 class Trainer(object):
@@ -224,8 +225,24 @@ class Trainer(object):
         self.optimizer.zero_grad()
         self.aux_optimizer.zero_grad()
         loss.backward()
+        
+        # ⚠️ 关键：在step之前检查梯度是否有NaN
+        has_nan_grad = False
+        for name, param in self.model.named_parameters():
+            if param.grad is not None and torch.isnan(param.grad).any():
+                has_nan_grad = True
+                print(f"WARNING: NaN detected in gradient of {name}, skipping optimizer step!")
+                break
+        
+        if has_nan_grad:
+            # 不执行step，直接返回
+            return False
+        
+        # 梯度裁剪，防止梯度爆炸（必须在step之前）
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10.0)
         self.optimizer.step()
         self.aux_optimizer.step()
+        return True
 
     def _computeClassifyLoss(self, pred, label, label_mask):
 
@@ -261,6 +278,14 @@ class Trainer(object):
         return loss_per, pcd_guide_weight, img_guide_weight
 
     def run(self, epoch, mode="Train"):
+        # 🔒 Safety check: 每个epoch开始时检查模型参数完整性
+        for name, param in self.model.named_parameters():
+            if torch.isnan(param).any():
+                if self.recorder is not None:
+                    self.recorder.logger.error(f"!!! FATAL: Model parameter {name} contains NaN at epoch start!")
+                    self.recorder.logger.error(f"!!! Training cannot continue. Please restart from checkpoint with lower learning rate.")
+                raise RuntimeError(f"Model corrupted: {name} contains NaN!")
+        
         if mode == "Train":
             dataloader = self.train_loader
             self.model.train()
@@ -326,6 +351,13 @@ class Trainer(object):
                         f"WARNING: {mode} Sample {sample_info} (iter={i}, global_iter={sample_idx}) "
                         f"has ALL LABELS MASKED! label_unique={input_label.unique().cpu().tolist()}, "
                         f"label_shape={input_label.shape}, mask_sum={label_mask.sum().item()}")
+                # 清理显存，防止OOM - 删除input tensor引用
+                del input_feature, input_mask, input_label, label_mask, pcd_feature, img_feature
+                if mode == "Train":
+                    self.optimizer.zero_grad()
+                torch.cuda.synchronize()  # 等待GPU操作完成
+                gc.collect()  # 强制Python垃圾回收
+                torch.cuda.empty_cache()
                 continue  # 跳过这个样本
             # ================================================
 
@@ -361,11 +393,61 @@ class Trainer(object):
                 total_loss = loss_foc + loss_lov * self.settings.lambda_ + \
                      loss_foc_cam + loss_lov_cam * self.settings.lambda_ + \
                      loss_per * self.settings.gamma
-                if self.settings.n_gpus > 1:
+                
+                # 确保loss是标量
+                if total_loss.dim() > 0:
                     total_loss = total_loss.mean()
+                
+                # ⚠️ 在backward之前检测NaN
+                if torch.isnan(total_loss):
+                    if self.recorder is not None:
+                        self.recorder.logger.warning(f"Warning: NaN detected in total_loss before backward, skipping batch {i}")
+                    
+                    # 重置BatchNorm和优化器状态
+                    for module in self.model.modules():
+                        if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
+                            module.running_mean.zero_()
+                            module.running_var.fill_(1)
+                            module.num_batches_tracked.zero_()
+                    self.optimizer.state = {}
+                    self.aux_optimizer.state = {}
+                    
+                    # 清理显存
+                    del lidar_pred, camera_pred, lidar_pred_log, pcd_entropy
+                    del camera_pred_log, img_entropy
+                    del loss_foc, loss_lov, loss_foc_cam, loss_lov_cam, loss_per, total_loss
+                    self.optimizer.zero_grad()
+                    torch.cuda.synchronize()
+                    gc.collect()
+                    torch.cuda.empty_cache()
+                    continue
 
                 # backward
-                self._backward(total_loss)
+                step_successful = self._backward(total_loss)
+                
+                if not step_successful:
+                    # 梯度有NaN，跳过这个batch
+                    if self.recorder is not None:
+                        self.recorder.logger.warning(f"Skipping batch {i} due to NaN in gradients")
+                    
+                    # 重置BatchNorm和优化器状态
+                    for module in self.model.modules():
+                        if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
+                            module.running_mean.zero_()
+                            module.running_var.fill_(1)
+                            module.num_batches_tracked.zero_()
+                    self.optimizer.state = {}
+                    self.aux_optimizer.state = {}
+                    
+                    # 清理显存
+                    del lidar_pred, camera_pred, lidar_pred_log, pcd_entropy
+                    del camera_pred_log, img_entropy
+                    del loss_foc, loss_lov, loss_foc_cam, loss_lov_cam, loss_per, total_loss
+                    torch.cuda.synchronize()
+                    gc.collect()
+                    torch.cuda.empty_cache()
+                    continue
+                
                 # update lr after backward (required by pytorch)
                 self.scheduler.step()
                 self.aux_scheduler.step()
@@ -403,11 +485,12 @@ class Trainer(object):
                         loss_foc_cam + loss_lov_cam * self.settings.lambda_ + \
                         loss_per * self.settings.gamma
 
-                    if self.settings.n_gpus > 1:
+                    # 确保loss是标量
+                    if total_loss.dim() > 0:
                         total_loss = total_loss.mean()
 
             # measure accuracy and record loss
-            loss = total_loss.mean()
+            loss = total_loss
 
             # # check output
             # measure accuracy and record loss
@@ -425,9 +508,27 @@ class Trainer(object):
                 mean_acc_img, class_acc_img = self.metrics_img.getAcc()
                 mean_recall_img, class_recall_img = self.metrics_img.getRecall()
 
-            # 检查NaN
+            # 再次检查NaN（理论上不应该到这里）
             if torch.isnan(total_loss):
-                print("Warning: NaN detected in loss, skipping this batch")
+                if self.recorder is not None:
+                    self.recorder.logger.warning(f"Warning: NaN detected after forward, skipping batch {i}")
+                
+                # 关键：重置所有BatchNorm的running statistics
+                if mode == "Train":
+                    for module in self.model.modules():
+                        if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
+                            module.running_mean.zero_()
+                            module.running_var.fill_(1)
+                            module.num_batches_tracked.zero_()
+                
+                # 清理显存，防止OOM - 删除所有tensor引用
+                del lidar_pred, camera_pred, pcd_entropy, img_entropy
+                del loss_foc, loss_lov, loss_foc_cam, loss_lov_cam, loss_per, total_loss
+                if mode == "Train":
+                    self.optimizer.zero_grad()
+                torch.cuda.synchronize()  # 等待GPU操作完成
+                gc.collect()  # 强制Python垃圾回收
+                torch.cuda.empty_cache()
                 continue
             loss_meter.update(total_loss.item(), input_feature.size(0))
             loss_focal_meter.update(loss_foc.item(), input_feature.size(0))
