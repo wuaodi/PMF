@@ -1,19 +1,19 @@
 # common config
 # save_path: "../../experiments/PMF-semantic-kitti-fov/"
-save_path: "../../experiments/PMF-spacesense_minimal/"
+save_path: "../../experiments/PMF-spacesense_136_sparse/"
 seed: 1
-#gpu: "0,1,2,3"
-gpu: "0"
+#gpu: "0,1,2,3"  # 多卡配置（当前版本不支持）
+gpu: "3"  # 使用GPU 2（H200）
 print_frequency: 2
-n_threads: 2  # 降低预加载worker数量，减少显存峰值
-experiment_id: "202512041700"
+n_threads: 8  # 使用8个worker并行加载数据
+experiment_id: "202601211000"
 
 # data conifg
 val_only: false
 has_label: true
 is_debug: false
 n_epochs: 50
-batch_size: [2, 2] # 定义训练和验证的批次大小（折中方案）
+batch_size: [16, 8] # 显存足够，保持较大batch size
 lr: 0.0001  # 大幅降低学习率，防止梯度爆炸和参数NaN
 warmup_epochs: 1
 momentum: 0.9
@@ -21,8 +21,9 @@ weight_decay: 0.00001
 val_frequency: 1
 
 dataset: "SemanticKitti"
-nclasses: 7 # 6 real classes + 1 unlabeled (background)
-data_root: "../../data/spacesense_minimal_kitti/sequences"
+nclasses: 8 # 7 real classes + 1 unlabeled (background)
+data_root: "/data1/wuaodi_data/spacesense_136_sparse/sequences"
+data_config: "../../pc_processor/dataset/semantic_kitti/spacesense_136_sparse.yaml"
 
 base_channels: 32
 img_backbone: "resnet34"
